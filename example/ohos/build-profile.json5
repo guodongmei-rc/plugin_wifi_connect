@@ -1,0 +1,52 @@
+{
+  "app": {
+    "signingConfigs": [
+      {
+        "name": "default",
+        "type": "HarmonyOS",
+        "material": {
+          "certpath": "/Users/gdm/.ohos/config/default_ohos_bgCPkw1emJ1gazUVBZJ_phQSJMoS-UHESV0Dk9AObt0=.cer",
+          "keyAlias": "debugKey",
+          "keyPassword": "0000001B05DDE3ED882245A4C10F07EA55EABE9B3B94E6C8FE51722CC334FD58BDA7F0302666CBB72BE181",
+          "profile": "/Users/gdm/.ohos/config/default_ohos_bgCPkw1emJ1gazUVBZJ_phQSJMoS-UHESV0Dk9AObt0=.p7b",
+          "signAlg": "SHA256withECDSA",
+          "storeFile": "/Users/gdm/.ohos/config/default_ohos_bgCPkw1emJ1gazUVBZJ_phQSJMoS-UHESV0Dk9AObt0=.p12",
+          "storePassword": "0000001B9965C8E87587DA1CAC58722C2833E046E1D22D386B014F5003BE75227E4F2C89DE4893EEFFB82F"
+        }
+      }
+    ],
+    "products": [
+      {
+        "name": "default",
+        "signingConfig": "default",
+        "compatibleSdkVersion": "5.1.0(18)",
+        "runtimeOS": "HarmonyOS",
+      }
+    ],
+    "buildModeSet": [
+      {
+        "name": "debug"
+      },
+      {
+        "name": "profile"
+      },
+      {
+        "name": "release"
+      }
+    ]
+  },
+  "modules": [
+    {
+      "name": "entry",
+      "srcPath": "./entry",
+      "targets": [
+        {
+          "name": "default",
+          "applyToProducts": [
+            "default"
+          ]
+        }
+      ]
+    }
+  ]
+}

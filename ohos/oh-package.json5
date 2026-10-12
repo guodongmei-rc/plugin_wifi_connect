@@ -1,0 +1,9 @@
+{
+  "name": "plugin_wifi_connect",
+  "version": "1.0.0",
+  "description": "A low dependency flutter plugin to allow simple connection to wifi devices with the provided ssid or ssid prefix",
+  "main": "index.ets",
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {}
+}

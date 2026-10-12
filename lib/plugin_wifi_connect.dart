@@ -8,25 +8,25 @@ class PluginWifiConnect {
   static const MethodChannel _channel = MethodChannel('plugin_wifi_connect');
 
   /// The [isEnabled] method returns true if WiFi is enabled.
-  /// The method only works on android.
+  /// The method only works on android and ohos.
   static Future<bool> get isEnabled async {
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isOhos) {
       final bool enabled = await _channel.invokeMethod('isWifiEnabled');
       return enabled;
     }
     return false;
   }
 
-  /// The [activateWifi] method turns on WiFi only works on android.
+  /// The [activateWifi] method turns on WiFi only works on android and ohos.
   static Future<void> activateWifi() async {
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isOhos) {
       await _channel.invokeMethod('activateWifi');
     }
   }
 
-  /// The [deactivateWifi] method turns off wifi only works on android.
+  /// The [deactivateWifi] method turns off wifi only works on android and ohos.
   static Future<void> deactivateWifi() async {
-    if (Platform.isAndroid) {
+    if (Platform.isAndroid || Platform.isOhos) {
       await _channel.invokeMethod('deactivateWifi');
     }
   }

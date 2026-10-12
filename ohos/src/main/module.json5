@@ -1,0 +1,10 @@
+{
+  "module": {
+    "name": "plugin_wifi_connect",
+    "type": "har",
+    "deviceTypes": [
+      "default",
+      "tablet"
+    ]
+  }
+}
