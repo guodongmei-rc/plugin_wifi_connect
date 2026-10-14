@@ -47,9 +47,12 @@
         "reason": "$string:wifi_permission_reason",
         "usedScene": {"abilities": ["EntryAbility"], "when": "inuse"}
       },
-      // connect/disconnect/enableWifi need this, but it is ACL-restricted
-      // (system_basic): only add it if your app is signed with the matching ACL.
-      // {"name": "ohos.permission.SET_WIFI_INFO"},
+      // Open permission (normal, system_grant): declaring it here is enough, no ACL needed.
+      // Note: on API 15+, disconnect/enableWifi/disableWifi additionally require
+      // MANAGE_WIFI_CONNECTION (system apps) or MANAGE_ENTERPRISE_WIFI_CONNECTION
+      // (enterprise apps); on regular apps those calls degrade to a false result.
+      {"name": "ohos.permission.SET_WIFI_INFO"},
+//      {"name": "ohos.permission.SET_WIFI_CONFIG"}
     ]
   }
 }

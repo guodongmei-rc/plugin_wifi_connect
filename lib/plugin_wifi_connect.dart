@@ -60,7 +60,8 @@ class PluginWifiConnect {
       {bool isWep = false,
       bool isWpa3 = false,
       bool saveNetwork = false,
-      bool isHidden = false}) async {
+      bool isHidden = false,
+      bool userAction = false}) async {
     final bool? connected = await _channel.invokeMethod<bool>(
       'secureConnect',
       <String, dynamic>{
@@ -70,6 +71,7 @@ class PluginWifiConnect {
         'isWep': isWep,
         'isWpa3': isWpa3,
         'isHidden': isHidden,
+        'userAction': userAction,
       },
     );
     return connected;
