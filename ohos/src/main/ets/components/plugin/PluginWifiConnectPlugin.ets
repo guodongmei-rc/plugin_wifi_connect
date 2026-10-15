@@ -15,7 +15,7 @@ const TAG = 'WifiConnect';
 /** Milliseconds to wait for a wifiConnectionChange event before retrying/reporting failure. */
 const CONNECT_TIMEOUT_MS = 29000;
 /** How many extra connect attempts are issued after the first one times out. */
-const CONNECT_RETRIES = 3;
+const CONNECT_RETRIES = 0;
 /** Milliseconds to wait for a disconnect event after removing the candidate config. */
 const DISCONNECT_TIMEOUT_MS = 10000;
 /** wifiConnectionChange state meaning "disconnected". */
