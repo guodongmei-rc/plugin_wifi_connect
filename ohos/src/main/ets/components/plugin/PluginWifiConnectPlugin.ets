@@ -32,8 +32,6 @@ export default class PluginWifiConnectPlugin implements FlutterPlugin, MethodCal
   private channel: MethodChannel | null = null;
   /** Candidate config id from the last successful addCandidateConfig, used by the disconnect fallback. */
   private lastNetworkId: number | null = null;
-  /** Config of the last connect attempt, cached so disconnect can re-add it after removal. */
-  private lastConfig: wifiManager.WifiDeviceConfig | null = null;
 
   getUniqueClassName(): string {
     return 'PluginWifiConnectPlugin';
@@ -113,6 +111,23 @@ export default class PluginWifiConnectPlugin implements FlutterPlugin, MethodCal
       case 'disconnect':
         this.disconnectNetwork(result);
         break;
+      case 'hasCandidateConfig': {
+        const ssid = call.argument('ssid') as string;
+        const isPrefix = call.argument('prefix') == true;
+        this.guard(result, () => {
+          let target = ssid;
+          if (isPrefix) {
+            const best = this.findBestScan(ssid);
+            if (best == null) {
+              result.success(false);
+              return;
+            }
+            target = best.ssid;
+          }
+          result.success(this.findCandidateId(target) != null);
+        });
+        break;
+      }
       default:
         result.notImplemented();
         break;
@@ -137,15 +152,11 @@ export default class PluginWifiConnectPlugin implements FlutterPlugin, MethodCal
         result.success(false);
         return;
       }
-      const matches = wifiManager.getScanInfoList()
-        .filter((scan) => scan.ssid != null && scan.ssid.startsWith(prefix));
-      if (matches.length == 0) {
+      const best = this.findBestScan(prefix);
+      if (best == null) {
         result.success(false);
         return;
       }
-      // pick the strongest signal, mirroring the android implementation
-      matches.sort((a, b) => b.rssi - a.rssi);
-      const best = matches[0];
       const config: wifiManager.WifiDeviceConfig = makeConfig != null ? makeConfig(best) : {
         ssid: best.ssid,
         bssid: best.bssid,
@@ -155,6 +166,18 @@ export default class PluginWifiConnectPlugin implements FlutterPlugin, MethodCal
       };
       this.connect(config, best.ssid, result);
     });
+  }
+
+  /** Strongest scanned network whose ssid starts with the prefix, or null. */
+  private findBestScan(prefix: string): wifiManager.WifiScanInfo | null {
+    const matches = wifiManager.getScanInfoList()
+      .filter((scan) => scan.ssid != null && scan.ssid.startsWith(prefix));
+    if (matches.length == 0) {
+      return null;
+    }
+    // pick the strongest signal, mirroring the android implementation
+    matches.sort((a, b) => b.rssi - a.rssi);
+    return matches[0];
   }
 
   private connect(config: wifiManager.WifiDeviceConfig, ssid: string, result: MethodResult,
@@ -193,7 +216,6 @@ export default class PluginWifiConnectPlugin implements FlutterPlugin, MethodCal
   private async connectAsync(config: wifiManager.WifiDeviceConfig, ssid: string,
     result: MethodResult, userAction: boolean): Promise<void> {
     this.applyScanInfo(config, ssid);
-    this.lastConfig = config;
     if (deviceInfo.sdkApiVersion >= 26) {
       // Camera-style hotspots have no internet: keep the wifi link up without
       // prompting, and let internet traffic fall back to cellular.
@@ -229,8 +251,20 @@ export default class PluginWifiConnectPlugin implements FlutterPlugin, MethodCal
       if (userAction) {
         this.log(`connectToCandidateConfigWithUserAction networkId=${networkId}`);
         wifiManager.connectToCandidateConfigWithUserAction(networkId).catch((err: Object) => {
+          // The promise rejects when the user cancels the system confirm dialog;
+          // the attempt is dead, so fail fast instead of waiting out the timeout.
           const error = err as BusinessError;
-          this.log(`withUserAction failed code=${error.code} message=${error.message ?? ''}`);
+          this.log(`withUserAction rejected code=${error.code} message=${error.message ?? ''}`);
+          if (settled) {
+            return;
+          }
+          settled = true;
+          if (timer != null) {
+            clearTimeout(timer);
+            timer = null;
+          }
+          wifiManager.off('wifiConnectionChange', onConnectionChange);
+          result.success(false);
         });
       } else {
         this.log(`connectToCandidateConfig networkId=${networkId}`);
@@ -338,6 +372,9 @@ export default class PluginWifiConnectPlugin implements FlutterPlugin, MethodCal
       if (!settled) {
         settled = true;
         wifiManager.off('wifiConnectionChange', onConnectionChange);
+        if (this.lastNetworkId == removedId) {
+          this.lastNetworkId = null;
+        }
         this.log('disconnect timeout after candidate removal');
         result.success(false);
       }
@@ -346,7 +383,6 @@ export default class PluginWifiConnectPlugin implements FlutterPlugin, MethodCal
     try {
       this.log(`removeCandidateConfig networkId=${removedId}`);
       await wifiManager.removeCandidateConfig(removedId);
-      await this.restoreCandidate(removedId);
     } catch (err) {
       if (!settled) {
         settled = true;
@@ -354,23 +390,6 @@ export default class PluginWifiConnectPlugin implements FlutterPlugin, MethodCal
         wifiManager.off('wifiConnectionChange', onConnectionChange);
         this.fail(result, err);
       }
-    }
-  }
-
-  /** Re-adds the cached config after a removal-based disconnect, so the next connect can reuse it. */
-  private async restoreCandidate(removedId: number): Promise<void> {
-    if (this.lastConfig == null) {
-      return;
-    }
-    try {
-      const newId = await wifiManager.addCandidateConfig(this.lastConfig);
-      if (newId >= 0) {
-        this.lastNetworkId = newId;
-        this.log(`re-added candidate networkId=${newId} (removed ${removedId})`);
-      }
-    } catch (err) {
-      const error = err as BusinessError;
-      this.log(`re-add candidate failed code=${error.code}`);
     }
   }
 

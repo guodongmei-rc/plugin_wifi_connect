@@ -7,6 +7,51 @@ import 'package:flutter/services.dart';
 class PluginWifiConnect {
   static const MethodChannel _channel = MethodChannel('plugin_wifi_connect');
 
+  static bool _handlerRegistered = false;
+  static void Function(String message)? _onLog;
+
+  /// Callback invoked with native log messages sent by the plugin (ohos side).
+  ///
+  /// A MethodChannel supports only one handler, which the plugin registers
+  /// internally; do NOT call `setMethodCallHandler` on the
+  /// 'plugin_wifi_connect' channel yourself — use this callback instead.
+  static set onLog(void Function(String message)? callback) {
+    _onLog = callback;
+    if (callback != null) {
+      _registerHandler();
+    }
+  }
+
+  static void Function(String message)? get onLog => _onLog;
+
+  static void _registerHandler() {
+    if (_handlerRegistered) {
+      return;
+    }
+    _handlerRegistered = true;
+    _channel.setMethodCallHandler((MethodCall call) async {
+      if (call.method == 'log' && call.arguments is String) {
+        _onLog?.call(call.arguments as String);
+      }
+    });
+  }
+
+  /// The [hasCandidateConfig] method queries in real time whether a persisted
+  /// candidate config (netId) already exists for [ssid]. When [prefix] is true,
+  /// the strongest scanned network whose ssid starts with [ssid] is checked
+  /// instead. Only works on ohos; other platforms always return false.
+  static Future<bool> hasCandidateConfig(String ssid,
+      {bool prefix = false}) async {
+    if (Platform.isOhos) {
+      final bool? exists = await _channel.invokeMethod<bool>(
+        'hasCandidateConfig',
+        <String, dynamic>{'ssid': ssid, 'prefix': prefix},
+      );
+      return exists ?? false;
+    }
+    return false;
+  }
+
   /// The [isEnabled] method returns true if WiFi is enabled.
   /// The method only works on android and ohos.
   static Future<bool> get isEnabled async {
@@ -61,7 +106,7 @@ class PluginWifiConnect {
       bool isWpa3 = false,
       bool saveNetwork = false,
       bool isHidden = false,
-      bool userAction = false}) async {
+      bool userAction = true}) async {
     final bool? connected = await _channel.invokeMethod<bool>(
       'secureConnect',
       <String, dynamic>{

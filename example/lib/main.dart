@@ -18,9 +18,6 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  static const MethodChannel _nativeChannel =
-      MethodChannel('plugin_wifi_connect');
-
   final TextEditingController _ssidController =
       TextEditingController(text: 'Helmetcam2_07c106');//Helmetcam2_07c106  SC2S_e22116
   final TextEditingController _passwordController =
@@ -33,11 +30,18 @@ class _MyAppState extends State<MyApp> {
   @override
   void initState() {
     super.initState();
-    _nativeChannel.setMethodCallHandler((call) async {
-      if (call.method == 'log') {
-        _log('native: ${call.arguments}');
-      }
-    });
+    PluginWifiConnect.onLog = (message) {
+      _log('native: $message');
+    };
+  }
+
+  @override
+  void dispose() {
+    PluginWifiConnect.onLog = null;
+    _ssidController.dispose();
+    _passwordController.dispose();
+    _prefixController.dispose();
+    super.dispose();
   }
 
   void _log(String message) {
@@ -66,6 +70,28 @@ class _MyAppState extends State<MyApp> {
     } catch (e) {
       _log('$name => $e');
     }
+  }
+
+  /// Runs a connect action after a real-time netId query: connects immediately
+  /// when a persisted candidate netId exists for [ssid], otherwise waits 10s
+  /// first. Pass [prefix] when [ssid] is a prefix (prefixConnect buttons).
+  Future<void> _runConnect(String name, String ssid,
+      Future<Object?> Function() action,
+      {bool prefix = false}) {
+    return _run(name, () async {
+      bool hasNetId = true;
+      try {
+        hasNetId = await PluginWifiConnect.hasCandidateConfig(ssid, prefix: prefix);
+        _log('实时查询 hasCandidateConfig($ssid) => $hasNetId');
+      } catch (e) {
+        _log('查询 netId 失败: $e，直接连接');
+      }
+      if (!hasNetId) {
+        _log('无候选配置 netId，延迟 10 秒后连接...');
+        await Future<void>.delayed(const Duration(seconds: 10));
+      }
+      return action();
+    });
   }
 
   @override
@@ -132,30 +158,36 @@ class _MyAppState extends State<MyApp> {
                       child: const Text('getSSID'),
                     ),
                     ElevatedButton(
-                      onPressed: () => _run('connect',
+                      onPressed: () => _runConnect('connect',
+                          _ssidController.text,
                           () => PluginWifiConnect.connect(_ssidController.text)),
                       child: const Text('connect'),
                     ),
                     ElevatedButton(
-                      onPressed: () => _run(
+                      onPressed: () => _runConnect(
                           'secureConnect',
+                          _ssidController.text,
                           () => PluginWifiConnect.connectToSecureNetwork(
                               _ssidController.text, _passwordController.text,
-                              isWpa3: _isWpa3, userAction: _userAction)),
+                              isWpa3: _isWpa3)),
                       child: const Text('secureConnect'),
                     ),
                     ElevatedButton(
-                      onPressed: () => _run(
+                      onPressed: () => _runConnect(
                           'connectByPrefix',
+                          _prefixController.text,
                           () => PluginWifiConnect.connectByPrefix(
-                              _prefixController.text)),
+                              _prefixController.text),
+                          prefix: true),
                       child: const Text('prefixConnect'),
                     ),
                     ElevatedButton(
-                      onPressed: () => _run(
+                      onPressed: () => _runConnect(
                           'securePrefixConnect',
+                          _prefixController.text,
                           () => PluginWifiConnect.connectToSecureNetworkByPrefix(
-                              _prefixController.text, _passwordController.text)),
+                              _prefixController.text, _passwordController.text),
+                          prefix: true),
                       child: const Text('securePrefix'),
                     ),
                     ElevatedButton(
